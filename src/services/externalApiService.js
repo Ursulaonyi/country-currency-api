@@ -1,16 +1,27 @@
 const axios = require('axios');
-require('dotenv').config();
+const dotenv = require('dotenv');
 
-const TIMEOUT = parseInt(process.env.API_TIMEOUT) || 30000;
+// Load .env FIRST before using any env variables
+dotenv.config();
 
 class ExternalApiService {
+    constructor() {
+        // Get timeout AFTER dotenv is loaded
+        this.timeout = parseInt(process.env.API_TIMEOUT) || 30000;
+        console.log(`🕐 API Timeout set to: ${this.timeout}ms`);
+    }
+
     async fetchCountries() {
         try {
             console.log('📡 Fetching countries from RestCountries API...');
             console.log('   URL:', process.env.COUNTRIES_API_URL);
+            console.log('   Timeout:', this.timeout + 'ms');
             
             const response = await axios.get(process.env.COUNTRIES_API_URL, {
-                timeout: TIMEOUT
+                timeout: this.timeout,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0'
+                }
             });
             
             if (!response.data || !Array.isArray(response.data)) {
@@ -22,7 +33,7 @@ class ExternalApiService {
         } catch (error) {
             console.error('❌ Error fetching countries:');
             console.error('   Message:', error.message);
-            console.error('   Code:', error.code);
+            if (error.code) console.error('   Code:', error.code);
             if (error.response) {
                 console.error('   Status:', error.response.status);
             }
@@ -37,16 +48,20 @@ class ExternalApiService {
         try {
             console.log('📡 Fetching exchange rates...');
             console.log('   URL:', process.env.EXCHANGE_API_URL);
+            console.log('   Timeout:', this.timeout + 'ms');
             
             const response = await axios.get(process.env.EXCHANGE_API_URL, {
-                timeout: TIMEOUT
+                timeout: this.timeout,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0'
+                }
             });
             
-            console.log('   Response received');
-            console.log('   Result:', response.data.result);
+            console.log('   ✓ Response received');
+            console.log('   Result field:', response.data.result || 'not present');
             
             if (!response.data.rates) {
-                console.error('   No rates object in response!');
+                console.error('   ❌ No rates object in response!');
                 console.error('   Response keys:', Object.keys(response.data));
                 throw new Error('No rates found in API response');
             }
@@ -58,10 +73,12 @@ class ExternalApiService {
         } catch (error) {
             console.error('❌ Error fetching exchange rates:');
             console.error('   Message:', error.message);
-            console.error('   Code:', error.code);
+            if (error.code) console.error('   Code:', error.code);
             if (error.response) {
                 console.error('   Status:', error.response.status);
-                console.error('   Data:', error.response.data);
+                if (error.response.data) {
+                    console.error('   Response data:', JSON.stringify(error.response.data).substring(0, 200));
+                }
             }
             return { 
                 success: false, 

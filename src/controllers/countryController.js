@@ -45,19 +45,29 @@ class CountryController {
                     let exchangeRate = null;
                     let estimatedGdp = null;
 
+                    // Ensure population is a number (FIX #1)
+                    const population = parseInt(country.population) || 0;
+
                     // Handle currency
                     if (country.currencies && country.currencies.length > 0) {
                         currencyCode = country.currencies[0].code;
-                        exchangeRate = exchangeRates[currencyCode] || null;
+                        
+                        // Get exchange rate and ensure it's a number (FIX #1)
+                        const rateValue = exchangeRates[currencyCode];
+                        exchangeRate = (rateValue && !isNaN(parseFloat(rateValue))) 
+                            ? parseFloat(rateValue) 
+                            : null;
 
                         // Calculate estimated GDP
-                        if (exchangeRate !== null) {
+                        if (exchangeRate !== null && exchangeRate > 0) {
                             const randomMultiplier = Math.random() * (2000 - 1000) + 1000;
-                            estimatedGdp = (country.population * randomMultiplier) / exchangeRate;
+                            estimatedGdp = (population * randomMultiplier) / exchangeRate;
+                        } else {
+                            estimatedGdp = null; // Not 0, but null when rate unavailable
                         }
                     } else {
                         // Empty currencies array
-                        estimatedGdp = 0;
+                        estimatedGdp = 0; // Explicitly 0 for empty currencies
                     }
 
                     // Check if country exists (case-insensitive)
@@ -82,7 +92,7 @@ class CountryController {
                             [
                                 country.capital || null,
                                 country.region || null,
-                                country.population,
+                                population,
                                 currencyCode,
                                 exchangeRate,
                                 estimatedGdp,
@@ -100,7 +110,7 @@ class CountryController {
                                 country.name,
                                 country.capital || null,
                                 country.region || null,
-                                country.population,
+                                population,
                                 currencyCode,
                                 exchangeRate,
                                 estimatedGdp,
@@ -185,14 +195,16 @@ class CountryController {
                 params.push(currency);
             }
 
-            // Apply sorting
+            // Apply sorting (FIX #2)
             if (sort) {
-                switch (sort) {
+                switch (sort.toLowerCase()) {
                     case 'gdp_desc':
-                        query += ' ORDER BY estimated_gdp DESC';
+                        // NULL values last, then sort descending
+                        query += ' ORDER BY estimated_gdp IS NULL, estimated_gdp DESC';
                         break;
                     case 'gdp_asc':
-                        query += ' ORDER BY estimated_gdp ASC';
+                        // NULL values last, then sort ascending
+                        query += ' ORDER BY estimated_gdp IS NULL, estimated_gdp ASC';
                         break;
                     case 'name_asc':
                         query += ' ORDER BY name ASC';
